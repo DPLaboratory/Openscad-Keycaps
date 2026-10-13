@@ -25,6 +25,17 @@ round_steps = 12;       // risoluzione dell'arrotondamento (piu' alto = piu' lis
 dish_dia   = 15.0;    // diametro cerchio visto dall'alto (< 18 - 2*edge_size)
 dish_depth = 0.5;     // profondita' al centro (< top_t!)
 
+// ---------- Testo ----------
+text_mode     = "none";  // "none" | "flat" (rilievo con sommita' piatta) | "engraved" (scavato)
+key_text      = "A";     // testo da riportare sul tasto
+text_size     = 6;       // altezza lettere (mm)
+text_font     = "Liberation Sans:style=Bold";
+text_spacing  = 1;       // spaziatura tra lettere (1 = normale)
+text_rotate   = 0;       // rotazione in gradi
+text_offset   = [0, 0];  // spostamento [x, y] dal centro (mm)
+text_raise    = 0.4;     // "flat": quanto sporge sopra il piano superiore (mm)
+text_engrave  = 0.3;     // "engraved": profondita' sotto il fondo del dish (mm)
+
 // ---------- Stem Cherry MX ----------
 stem_d      = 5.6;    // diametro esterno cilindro
 stem_h      = 3.3;    // profondita' croce dal basso
@@ -80,7 +91,23 @@ module stem() {
     }
 }
 
+// sagoma 2D del testo, centrata
+module text2d() {
+    translate(text_offset)
+        rotate(text_rotate)
+            text(key_text, size = text_size, font = text_font,
+                 halign = "center", valign = "center", spacing = text_spacing);
+}
+
+// quota del fondo del dish al centro
+dish_floor = cap_h - dish_depth;
+
 module keycap() {
+    // controllo: in modalita' scavato deve restare materiale sopra la cavita'
+    if (text_mode == "engraved")
+        assert(dish_floor - text_engrave > ceil_h + 0.2,
+               "text_engrave troppo profondo: il tetto diventa troppo sottile");
+
     union() {
         difference() {
             outer_body();
@@ -89,8 +116,16 @@ module keycap() {
                 rsq(cap_w - 2*wall, cap_d - 2*wall,
                     max(corner_r - wall, 0.5), ceil_h + 0.01);
             dish();
+            // testo scavato: fondo piatto
+            if (text_mode == "engraved")
+                translate([0, 0, dish_floor - text_engrave])
+                    linear_extrude(text_engrave + dish_depth + 1) text2d();
         }
         stem();
+        // testo in rilievo: sommita' piatta, parte da dentro il dish
+        if (text_mode == "flat")
+            translate([0, 0, dish_floor - 0.1])
+                linear_extrude(cap_h + text_raise - (dish_floor - 0.1)) text2d();
     }
 }
 

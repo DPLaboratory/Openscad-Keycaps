@@ -58,7 +58,7 @@ sep_char = "|";
 
 numbers = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 
-numbers_symbols = ["!|1", "@|2", "#|3", "$|4", "%|5", "^|6", "&|7", "*|8", "(|9", ")|0"];
+numbers_shifted = ["!|1", "@|2", "#|3", "$|4", "%|5", "^|6", "&|7", "*|8", "(|9", ")|0"];
 
 letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
            "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -79,7 +79,7 @@ enter = ["↵"];
 //keys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", ["Tab", 1.5], ["Esc", 1]];
 //keys = ["", "", [""], [""], [""], "", "", [""], [""], [""], [""], [""]];
 
-keys = concat(numbers_symbols, letters, func);
+keys = concat(numbers ,numbers_shifted, letters, func);
 
 set_cols       = 6;      // keycap per riga sul piatto di stampa
 set_gap        = 3;      // spazio tra i keycap sul piatto (mm)

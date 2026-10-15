@@ -39,13 +39,14 @@ dish_depth = 0;       // 0.5 profondita' al centro (< top_t!)  | 0 = piano super
 text_mode     = "flat";  // "none" | "flat" (rilievo con sommita' piatta) | "engraved" (scavato)
 text_color    = "white";    // colore del testo (modalita' flat): e' l'unica parte colorata
 key_text      = "A";     // testo da riportare sul tasto - solo build_mode = "single"
-text_size     = 4;       // altezza lettere (mm)
-text_font     = "Liberation Sans:style=Bold";
+text_size     = 3;       // altezza lettere (mm)
+text_font     = "Britannic:style=Bold"; // Liberation Sans:style=Bold
 text_spacing  = 1;       // spaziatura tra lettere (1 = normale)
 text_rotate   = 0;       // rotazione in gradi
 text_offset   = [0, 0];  // spostamento [x, y] dal centro (mm)
 text_raise    = 0.0;     // "flat": quanto sporge sopra il piano superiore (mm)
 text_engrave  = 0.2;     // "engraved": profondita' sotto il fondo del dish (mm)
+line_spacing  = 1.2;   // interlinea, come multiplo di tsize
 
 // ---------- Set di keycap ----------
 // Ogni elemento di "keys" puo' essere:
@@ -53,7 +54,11 @@ text_engrave  = 0.2;     // "engraved": profondita' sotto il fondo del dish (mm)
 //   ["Tab", 1.5]         -> keycap larga 1.5u con il testo "Tab"
 //   ["Esc", 1.25, 4.5]   -> come sopra, con altezza testo forzata a 4.5 mm
 
+sep_char = "|";
+
 numbers = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+
+numbers_symbols = ["!|1", "@|2", "#|3", "$|4", "%|5", "^|6", "&|7", "*|8", "(|9", ")|0"];
 
 letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
            "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -64,6 +69,8 @@ special = ["`", "-", "=", "[", "]", "\\", ";", "'", ",", ".", "/"];
 // Caratteri ottenuti con Shift (se ti servono come legende secondarie)
 shifted = ["~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+",
            "{", "}", "|", ":", "\"", "<", ">", "?"];
+ 
+func = ["Fn1", "Fn2", "Fn3", "Fn4|Ent"];  
            
 enter = ["↵"]; 
 
@@ -72,7 +79,7 @@ enter = ["↵"];
 //keys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", ["Tab", 1.5], ["Esc", 1]];
 //keys = ["", "", [""], [""], [""], "", "", [""], [""], [""], [""], [""]];
 
-keys = concat(numbers, letters);
+keys = concat(numbers_symbols, letters, func);
 
 set_cols       = 6;      // keycap per riga sul piatto di stampa
 set_gap        = 3;      // spazio tra i keycap sul piatto (mm)
@@ -174,12 +181,32 @@ module stem() {
     }
 }
 
+// funzioni split caratteri
+function join(l, i=0) = i >= len(l) ? "" : str(l[i], join(l, i+1));
+function substr(s, st, n) = n <= 0 ? "" : join([for (i=[st:st+n-1]) s[i]]);
+
+function split(s, sep="|", i=0, start=0, acc=[]) =
+    i == len(s) ? concat(acc, [substr(s, start, i-start)]) :
+    s[i] == sep ? split(s, sep, i+1, i+1, concat(acc, [substr(s, start, i-start)])) :
+    split(s, sep, i+1, start, acc);
+    
 // sagoma 2D del testo, centrata
 module text2d(label, tsize) {
+    lines = is_list(label) ? label : split(label, sep_char);
+    n = len(lines);
+
     translate(text_offset)
         rotate(text_rotate)
-            text(label, size = tsize, font = text_font,
-                 halign = "center", valign = "center", spacing = text_spacing);
+            for (i = [0 : n-1])
+                translate([0, ((n-1)/2 - i) * tsize * line_spacing])
+                    text(lines[i], size = tsize, font = text_font,
+                         halign = "center", valign = "center",
+                         spacing = text_spacing);
+                         
+//    translate(text_offset)
+//        rotate(text_rotate)
+//            text(label, size = tsize, font = text_font,
+//                 halign = "center", valign = "center", spacing = text_spacing);
 }
 
 // quota del fondo del dish al centro

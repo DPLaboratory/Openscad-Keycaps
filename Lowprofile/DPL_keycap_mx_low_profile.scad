@@ -52,10 +52,27 @@ text_engrave  = 0.2;     // "engraved": profondita' sotto il fondo del dish (mm)
 //   "Q"                  -> keycap 1u con il testo "Q"
 //   ["Tab", 1.5]         -> keycap larga 1.5u con il testo "Tab"
 //   ["Esc", 1.25, 4.5]   -> come sopra, con altezza testo forzata a 4.5 mm
-keys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", ["Tab", 1.5], ["Esc", 1]];
 
+numbers = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+
+letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+           "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
+
+// Caratteri speciali (layout US/ANSI)
+special = ["`", "-", "=", "[", "]", "\\", ";", "'", ",", ".", "/"];
+
+// Caratteri ottenuti con Shift (se ti servono come legende secondarie)
+shifted = ["~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+",
+           "{", "}", "|", ":", "\"", "<", ">", "?"];
+           
+enter = ["↵"]; 
+
+// Tutto insieme
+// keys = concat(numbers, letters, special);
+//keys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", ["Tab", 1.5], ["Esc", 1]];
 //keys = ["", "", [""], [""], [""], "", "", [""], [""], [""], [""], [""]];
 
+keys = concat(numbers, letters);
 
 set_cols       = 6;      // keycap per riga sul piatto di stampa
 set_gap        = 3;      // spazio tra i keycap sul piatto (mm)
@@ -222,16 +239,23 @@ module keycap_links() {
     // i ponticelli corrono sotto le pareti: non devono chiudere la cavita' del keycap
     assert(wall_h - cap_h_out >= link_h + 0.2,
            "link_h troppo alto: i ponticelli toccherebbero le pareti dei keycap");
+           
+    margin_x_row = round(pitch / 2) - link_w;
+    margin_x_col = round(pitch / 2) - link_w;
+    
     difference() {
         union() {
             for (i = [0 : n - 1]) {
-                p = [key_x(i), key_y(i)];
+                p_row = [key_x(i) + margin_x_row, key_y(i)];
+                p_col = [key_x(i) , key_y(i) - margin_x_col];
+                
                 // keycap successivo nella stessa riga
                 if (i + 1 < n && row_start(i + 1) == row_start(i))
-                    link(p, [key_x(i + 1), key_y(i + 1)]);
+                    link(p_row, [key_x(i + 1) - margin_x_row, key_y(i + 1)]);
+                
                 // keycap nella riga sotto
                 if (link_mode == "grid" && i + set_cols < n)
-                    link(p, [key_x(i + set_cols), key_y(i + set_cols)]);
+                    link(p_col, [key_x(i + set_cols), key_y(i + set_cols) + margin_x_col]);
             }
         }
         // la croce di ogni stem resta libera

@@ -3,6 +3,8 @@
 // Bordo superiore selezionabile: smussato a 45 gradi oppure arrotondato.
 //
 // r2: aggiunta la generazione di un intero set di keycap a partire dall'array "keys".
+// r4: aggiunti ponticelli sottili tra gli stem dei keycap del set (link_mode) per migliorare
+//     l'aderenza al piatto di stampa.
 
 $fn = 64;
 
@@ -50,9 +52,9 @@ text_engrave  = 0.2;     // "engraved": profondita' sotto il fondo del dish (mm)
 //   "Q"                  -> keycap 1u con il testo "Q"
 //   ["Tab", 1.5]         -> keycap larga 1.5u con il testo "Tab"
 //   ["Esc", 1.25, 4.5]   -> come sopra, con altezza testo forzata a 4.5 mm
-//keys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", ["Tab", 1.5], ["Esc", 1]];
+keys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", ["Tab", 1.5], ["Esc", 1]];
 
-keys = ["f-Ent", "Fn2", ["Esc", 1]];
+//keys = ["", "", [""], [""], [""], "", "", [""], [""], [""], [""], [""]];
 
 
 set_cols       = 6;      // keycap per riga sul piatto di stampa
@@ -60,6 +62,16 @@ set_gap        = 3;      // spazio tra i keycap sul piatto (mm)
 auto_fit_text  = true;   // riduce il testo se non entra nella faccia superiore
 text_char_w    = 0.7;    // larghezza media di un carattere = text_char_w * size (stima per il fit)
 text_margin    = 0.5;    // margine libero ai lati del testo (mm)
+
+// ---------- Collegamento tra keycap (aderenza al piatto) ----------
+// Ponticelli sottili al livello del piatto che uniscono gli stem dei keycap vicini.
+// Gli stem sono l'unica parte a contatto col piatto: collegandoli si aumenta la superficie
+// del primo strato. Le croci degli stem restano libere. Dopo la stampa si tagliano via.
+link_mode = "grid";   // "none" = nessun collegamento
+                      // "rows" = collega ogni keycap al successivo nella stessa riga
+                      // "grid" = come "rows" + collega ogni keycap a quello nella riga sotto
+link_h    = 0.4;      // altezza ponticelli (mm): 1-2 strati, facili da staccare
+link_w    = 2.0;      // larghezza ponticelli (mm)
 
 // ---------- Stem Cherry MX ----------
 stem_d      = 5.6;    // diametro esterno cilindro
@@ -128,15 +140,20 @@ module dish() {
     translate([0, 0, cap_h + R - dish_depth]) sphere(r = R, $fn = 160);
 }
 
+// cavita' a croce dello stem (usata anche per tenere libera la croce nei ponticelli)
+module stem_cross() {
+    translate([0, 0, -0.01]) {
+        translate([-(cross_len + tol)/2, -(cross_wid + tol)/2, 0])
+            cube([cross_len + tol, cross_wid + tol, stem_h]);
+        translate([-(cross_wid + tol)/2, -(cross_len + tol)/2, 0])
+            cube([cross_wid + tol, cross_len + tol, stem_h]);
+    }
+}
+
 module stem() {
     difference() {
         cylinder(d = stem_d, h = ceil_h + 0.2);
-        translate([0, 0, -0.01]) {
-            translate([-(cross_len + tol)/2, -(cross_wid + tol)/2, 0])
-                cube([cross_len + tol, cross_wid + tol, stem_h]);
-            translate([-(cross_wid + tol)/2, -(cross_len + tol)/2, 0])
-                cube([cross_wid + tol, cross_len + tol, stem_h]);
-        }
+        stem_cross();
     }
 }
 
@@ -177,7 +194,6 @@ module keycap(label = key_text, u = key_u, tsize = text_size) {
         // testo in rilievo: sommita' piatta, parte da dentro il dish
         if (text_mode == "flat")
             color(text_color)
-                //translate([0, 0, dish_floor - 0.1])
                 translate([0, 0, cap_h] )
                     linear_extrude(cap_h + text_raise - (dish_floor - 0.1)) text2d(label, tsize);
     }
@@ -192,6 +208,41 @@ module keycap_set() {
     }
 }
 
+// ponticello piatto tra due punti [x, y] (centri degli stem)
+module link(a, b) {
+    hull() {
+        translate([a[0], a[1], cap_h-link_h]) cylinder(d = link_w, h = link_h, $fn = 24);
+        translate([b[0], b[1], cap_h-link_h]) cylinder(d = link_w, h = link_h, $fn = 24);
+    }
+}
+
+// ponticelli tra gli stem dei keycap del set, sul piano del piatto (z = 0..link_h)
+module keycap_links() {
+    n = len(keys);
+    // i ponticelli corrono sotto le pareti: non devono chiudere la cavita' del keycap
+    assert(wall_h - cap_h_out >= link_h + 0.2,
+           "link_h troppo alto: i ponticelli toccherebbero le pareti dei keycap");
+    difference() {
+        union() {
+            for (i = [0 : n - 1]) {
+                p = [key_x(i), key_y(i)];
+                // keycap successivo nella stessa riga
+                if (i + 1 < n && row_start(i + 1) == row_start(i))
+                    link(p, [key_x(i + 1), key_y(i + 1)]);
+                // keycap nella riga sotto
+                if (link_mode == "grid" && i + set_cols < n)
+                    link(p, [key_x(i + set_cols), key_y(i + set_cols)]);
+            }
+        }
+        // la croce di ogni stem resta libera
+        for (i = [0 : n - 1])
+            translate([key_x(i), key_y(i), 0]) stem_cross();
+    }
+}
+
 // ---------- Output ----------
-if (build_mode == "set") keycap_set();
+if (build_mode == "set") {
+    keycap_set();
+    if (link_mode != "none") keycap_links();
+}
 else keycap();
